@@ -4,8 +4,10 @@ import random
 import discord
 from discord import app_commands
 from discord.ext import commands
+from datetime import datetime
 
-GUILD_ID = 1553891726710677554
+GUILD_ID  = 1553891726710677554
+LOG_CH_ID = 1574899155581542572
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="=", intents=intents, help_command=None)
@@ -33,12 +35,28 @@ async def wakeup(interaction: discord.Interaction, user: discord.Member, message
 
     msg = message if message else f"Réveille-toi ! C'est {interaction.user.mention} qui te l'ordonne."
     vcs = list(interaction.guild.voice_channels)
+    dm  = await user.create_dm()
+
+    log_ch = interaction.guild.get_channel(LOG_CH_ID)
+    if log_ch:
+        e = discord.Embed(color=0xFAA61A, timestamp=datetime.utcnow())
+        e.title = "🔔 Wakeup utilisé"
+        e.add_field(name="Auteur", value=interaction.user.mention, inline=False)
+        e.add_field(name="Cible",  value=user.mention,             inline=False)
+        e.add_field(name="Durée",  value="30 s",                   inline=False)
+        if message:
+            e.add_field(name="Message", value=message, inline=False)
+        await log_ch.send(embed=e)
 
     async def spam_mp():
         end = asyncio.get_event_loop().time() + 30
         while asyncio.get_event_loop().time() < end:
             try:
-                await user.send(msg)
+                await dm.send(msg)
+                await asyncio.sleep(1.1)
+            except discord.HTTPException as e:
+                if e.status == 429:
+                    await asyncio.sleep(e.retry_after)
             except Exception:
                 pass
 
