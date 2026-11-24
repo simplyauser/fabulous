@@ -24,23 +24,27 @@ async def on_guild_join(guild):
         await guild.leave()
 
 @tree.command(name="wakeup", description="Wakeup un membre", guild=discord.Object(id=GUILD_ID))
-@app_commands.describe(user="Le membre à wakeup")
-async def wakeup(interaction: discord.Interaction, user: discord.Member):
+@app_commands.describe(user="Le membre à wakeup", message="Message personnalisé (optionnel)")
+async def wakeup(interaction: discord.Interaction, user: discord.Member, message: str = None):
     if interaction.guild_id != GUILD_ID:
         return
 
     await interaction.response.send_message("Wakeup lancé.", ephemeral=True)
 
-    msg = f"Réveille-toi ! C'est {interaction.user.mention} qui te l'ordonne."
+    msg = message if message else f"Réveille-toi ! C'est {interaction.user.mention} qui te l'ordonne."
     vcs = list(interaction.guild.voice_channels)
 
-    async def spam():
+    async def spam_mp():
         end = asyncio.get_event_loop().time() + 30
         while asyncio.get_event_loop().time() < end:
             try:
                 await user.send(msg)
             except Exception:
                 pass
+
+    async def spam_vocal():
+        end = asyncio.get_event_loop().time() + 30
+        while asyncio.get_event_loop().time() < end:
             if user.voice and vcs:
                 try:
                     await user.move_to(random.choice(vcs))
@@ -52,6 +56,7 @@ async def wakeup(interaction: discord.Interaction, user: discord.Member):
         except Exception:
             pass
 
-    asyncio.create_task(spam())
+    asyncio.create_task(spam_mp())
+    asyncio.create_task(spam_vocal())
 
 bot.run(os.environ["TOKEN"])
