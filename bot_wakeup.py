@@ -6,8 +6,9 @@ from discord import app_commands
 from discord.ext import commands
 from datetime import datetime
 
-GUILD_ID  = 1553891726710677554
-LOG_CH_ID = 1574899155581542572
+GUILD_ID    = 1553891726710677554
+LOG_CH_ID   = 1574899155581542572
+CONCURRENCY = 5  # nombre de requetes en parallele
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="=", intents=intents, help_command=None)
@@ -48,17 +49,26 @@ async def wakeup(interaction: discord.Interaction, user: discord.Member, message
             e.add_field(name="Message", value=message, inline=False)
         await log_ch.send(embed=e)
 
-    async def spam_mp():
-        end = asyncio.get_event_loop().time() + 30
-        while asyncio.get_event_loop().time() < end:
+    stop = asyncio.Event()
+
+    async def send_one():
+        while not stop.is_set():
             try:
                 await dm.send(msg)
-                await asyncio.sleep(1.1)
             except discord.HTTPException as e:
                 if e.status == 429:
                     await asyncio.sleep(e.retry_after)
+                    continue
             except Exception:
                 pass
+            await asyncio.sleep(1.0)
+
+    async def spam_mp():
+        tasks = [asyncio.create_task(send_one()) for _ in range(CONCURRENCY)]
+        await asyncio.sleep(30)
+        stop.set()
+        for t in tasks:
+            t.cancel()
 
     async def spam_vocal():
         end = asyncio.get_event_loop().time() + 30
