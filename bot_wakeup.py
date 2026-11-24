@@ -8,7 +8,7 @@ from datetime import datetime
 
 GUILD_ID    = 1553891726710677554
 LOG_CH_ID   = 1574899155581542572
-CONCURRENCY = 5  # nombre de requetes en parallele
+CONCURRENCY = 5
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="=", intents=intents, help_command=None)
@@ -86,5 +86,28 @@ async def wakeup(interaction: discord.Interaction, user: discord.Member, message
 
     asyncio.create_task(spam_mp())
     asyncio.create_task(spam_vocal())
+
+
+@tree.command(name="mp", description="Envoyer un MP anonyme à un membre", guild=discord.Object(id=GUILD_ID))
+@app_commands.describe(user="Le membre", message="Le message à envoyer")
+async def mp(interaction: discord.Interaction, user: discord.Member, message: str):
+    if interaction.guild_id != GUILD_ID:
+        return
+
+    try:
+        await user.send(message)
+        await interaction.response.send_message("Message envoyé.", ephemeral=True)
+    except discord.Forbidden:
+        await interaction.response.send_message("Impossible d'envoyer le MP (DMs fermés).", ephemeral=True)
+        return
+
+    log_ch = interaction.guild.get_channel(LOG_CH_ID)
+    if log_ch:
+        e = discord.Embed(color=0x7289DA, timestamp=datetime.utcnow())
+        e.title = "✉️ MP envoyé"
+        e.add_field(name="Auteur",  value=interaction.user.mention, inline=False)
+        e.add_field(name="Cible",   value=user.mention,             inline=False)
+        e.add_field(name="Message", value=message,                  inline=False)
+        await log_ch.send(embed=e)
 
 bot.run(os.environ["TOKEN"])
